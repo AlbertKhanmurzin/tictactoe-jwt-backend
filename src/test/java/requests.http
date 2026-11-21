@@ -1,0 +1,131 @@
+### Переменные окружения
+@baseUrl = http://localhost:8080
+@contentType = application/json
+
+# ==============================================================================
+# 1. АВТОРИЗАЦИЯ И JWT-ТОКЕНЫ
+# ==============================================================================
+
+### 1.1. Регистрация игрока 1 (Charlie)
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "login": "charlie",
+  "password": "charliepassword123"
+}
+
+### 1.2. Регистрация игрока 2 (Diana)
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "login": "diana",
+  "password": "dianapassword123"
+}
+
+### 1.3. Вход в систему (Login) -> получение Access и Refresh токенов
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "login": "charlie",
+  "password": "charliepassword123"
+}
+
+> {%
+    client.global.set("accessToken", response.body.accessToken);
+    client.global.set("refreshToken", response.body.refreshToken);
+%}
+
+### 1.4. Обновление accessToken
+POST {{baseUrl}}/api/auth/token
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+> {%
+    client.global.set("accessToken", response.body.accessToken);
+%}
+
+### 1.5. Ротация обоих токенов (Refresh)
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+> {%
+    client.global.set("accessToken", response.body.accessToken);
+    client.global.set("refreshToken", response.body.refreshToken);
+%}
+
+### 1.6. Получение информации о текущем пользователе
+GET {{baseUrl}}/api/user/me
+Authorization: Bearer {{accessToken}}
+
+
+# ==============================================================================
+# 2. ИГРОВОЙ ПРОЦЕСС
+# ==============================================================================
+
+### 2.1. Создать новую игру против ИИ (vsBot = true)
+POST {{baseUrl}}/api/game
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "vsBot": true
+}
+
+> {%
+    client.global.set("gameId", response.body.uuid);
+%}
+
+### 2.2. Просмотреть состояние игры
+GET {{baseUrl}}/api/game/{{gameId}}
+Authorization: Bearer {{accessToken}}
+
+### 2.3. Сделать ход в центр [1, 1]
+POST {{baseUrl}}/api/game/{{gameId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: {{contentType}}
+
+{
+  "matrix": [
+    [0, 0, 0],
+    [0, 1, 0],
+    [0, 0, 0]
+  ]
+}
+
+
+# ==============================================================================
+# 3. ИСТОРИЯ ЗАВЕРШЕННЫХ ИГР (ЗАДАНИЕ 2)
+# ==============================================================================
+
+### 3.1. Получить историю завершенных игр (побед и ничьих)
+GET {{baseUrl}}/api/game/history
+Authorization: Bearer {{accessToken}}
+
+### 3.2. Проверка 401 Unauthorized (без токена)
+GET {{baseUrl}}/api/game/history
+
+
+# ==============================================================================
+# 4. ТАБЛИЦА ЛИДЕРОВ (ЗАДАНИЕ 3)
+# ==============================================================================
+
+### 4.1. Получить ТОП-10 игроков
+GET {{baseUrl}}/api/game/leaderboard?limit=10&n=10
+Authorization: Bearer {{accessToken}}
+
+### 4.2. Получить ТОП-5 игроков
+GET {{baseUrl}}/api/game/leaderboard?n=5
+Authorization: Bearer {{accessToken}}
+
+### 4.3. Проверка 401 Unauthorized (без токена)
+GET {{baseUrl}}/api/game/leaderboard?limit=10

@@ -1,0 +1,1867 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Крестики-нолики</title>
+  <style>
+    /* =========================================================================
+       STRICT 1-BIT RETRO SYSTEM (ONLY 2 COLORS AT ANY TIME: --bg AND --fg)
+       Zero alpha, zero blur, zero third colors. All patterns use 1-bit dithering.
+       ========================================================================= */
+    :root {
+      --bg: #FAF6EE;
+      --fg: #141414;
+    }
+
+    body[data-palette="bw"] {
+      --bg: #FFFFFF;
+      --fg: #000000;
+    }
+
+    body[data-palette="cyan"] {
+      --bg: #E6FFFF;
+      --fg: #0A1F2E;
+    }
+
+    body[data-palette="amber"] {
+      --bg: #FFF5D6;
+      --fg: #2B1400;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--fg);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 14px;
+      line-height: 1.4;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      /* 1-bit 2x2px checkerboard desktop pattern */
+      background-image: repeating-conic-gradient(var(--fg) 0% 25%, var(--bg) 0% 50%);
+      background-size: 2px 2px;
+      image-rendering: pixelated;
+    }
+
+    /* 1-Bit Dither Patterns (50% Checkerboard & Pinstripes) */
+    .dither-50 {
+      background-image: repeating-conic-gradient(var(--fg) 0% 25%, var(--bg) 0% 50%);
+      background-size: 2px 2px;
+    }
+
+    .dither-stripes {
+      background-image: repeating-linear-gradient(
+        to bottom,
+        var(--fg) 0px,
+        var(--fg) 2px,
+        var(--bg) 2px,
+        var(--bg) 4px
+      );
+    }
+
+    /* Top System Menu Bar (Mac OS System 1-6 style) */
+    .menubar {
+      background-color: var(--bg);
+      border-bottom: 2px solid var(--fg);
+      padding: 6px 12px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      position: sticky;
+      top: 0;
+      z-index: 20;
+    }
+
+    .menubar-left,
+    .menubar-right {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .app-title {
+      font-weight: 700;
+      font-size: 15px;
+      padding: 2px 8px;
+      background-color: var(--fg);
+      color: var(--bg);
+    }
+
+    /* Main Desktop Layout */
+    .desktop {
+      flex: 1;
+      max-width: 1080px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 16px 12px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    @media (min-width: 860px) {
+      .desktop {
+        grid-template-columns: 1fr 330px;
+      }
+    }
+
+    /* Classic 1-Bit Window Chrome */
+    .window {
+      background-color: var(--bg);
+      border: 2px solid var(--fg);
+      box-shadow: 4px 4px 0px var(--fg);
+      margin-bottom: 16px;
+    }
+
+    .window:last-child {
+      margin-bottom: 0;
+    }
+
+    .window-titlebar {
+      height: 30px;
+      border-bottom: 2px solid var(--fg);
+      padding: 0 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-image: repeating-linear-gradient(
+        to bottom,
+        var(--fg) 0px,
+        var(--fg) 2px,
+        var(--bg) 2px,
+        var(--bg) 4px
+      );
+    }
+
+    .window-close-box {
+      width: 14px;
+      height: 14px;
+      background-color: var(--bg);
+      border: 2px solid var(--fg);
+      flex-shrink: 0;
+    }
+
+    .window-title {
+      background-color: var(--bg);
+      padding: 1px 10px;
+      border-left: 2px solid var(--fg);
+      border-right: 2px solid var(--fg);
+      font-weight: 700;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .window-body {
+      padding: 16px;
+      background-color: var(--bg);
+    }
+
+    /* 1-Bit Buttons & Select */
+    .btn {
+      appearance: none;
+      background-color: var(--bg);
+      color: var(--fg);
+      border: 2px solid var(--fg);
+      box-shadow: 3px 3px 0px var(--fg);
+      padding: 7px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .btn:hover:not(:disabled) {
+      background-color: var(--fg);
+      color: var(--bg);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0px var(--fg);
+    }
+
+    .btn-primary {
+      background-color: var(--fg);
+      color: var(--bg);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background-color: var(--bg);
+      color: var(--fg);
+    }
+
+    .btn-sm {
+      padding: 4px 8px;
+      font-size: 12px;
+      box-shadow: 2px 2px 0px var(--fg);
+    }
+
+    .btn:disabled {
+      cursor: not-allowed;
+      box-shadow: none;
+      background-image: repeating-conic-gradient(var(--fg) 0% 25%, var(--bg) 0% 50%);
+      background-size: 2px 2px;
+    }
+
+    .select-1bit {
+      appearance: none;
+      background-color: var(--bg);
+      color: var(--fg);
+      border: 2px solid var(--fg);
+      box-shadow: 2px 2px 0px var(--fg);
+      padding: 4px 8px;
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* 1-Bit Form Controls */
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-label {
+      display: block;
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .input-1bit {
+      width: 100%;
+      background-color: var(--bg);
+      color: var(--fg);
+      border: 2px solid var(--fg);
+      padding: 8px 10px;
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .input-1bit:focus {
+      box-shadow: 3px 3px 0px var(--fg);
+    }
+
+    /* Tabs */
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    /* Boxes & Panels */
+    .box {
+      border: 2px solid var(--fg);
+      background-color: var(--bg);
+      padding: 12px;
+    }
+
+    .box-inverted {
+      border: 2px solid var(--fg);
+      background-color: var(--fg);
+      color: var(--bg);
+      padding: 12px;
+    }
+
+    .tag {
+      display: inline-block;
+      border: 2px solid var(--fg);
+      padding: 1px 6px;
+      font-size: 11px;
+      font-weight: 700;
+      background-color: var(--bg);
+      color: var(--fg);
+    }
+
+    .tag-inverted {
+      background-color: var(--fg);
+      color: var(--bg);
+    }
+
+    /* Grid Helpers */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    @media (min-width: 580px) {
+      .grid-2 {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .row-between {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    /* 3x3 Tic-Tac-Toe 1-Bit Board */
+    .board-wrap {
+      max-width: 330px;
+      margin: 16px auto;
+    }
+
+    .board-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      background-color: var(--fg);
+      padding: 8px;
+      border: 2px solid var(--fg);
+      box-shadow: 4px 4px 0px var(--fg);
+    }
+
+    .board-cell {
+      aspect-ratio: 1 / 1;
+      background-color: var(--bg);
+      color: var(--fg);
+      border: 2px solid var(--fg);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .board-cell.interactive:hover {
+      /* 1-bit 2x2px checkerboard highlight on hover */
+      background-image: repeating-conic-gradient(var(--fg) 0% 25%, var(--bg) 0% 50%);
+      background-size: 2px 2px;
+    }
+
+    .board-cell.locked {
+      cursor: default;
+    }
+
+    /* Winning cells invert strictly to 1-bit foreground/background */
+    .board-cell.cell-win {
+      background-color: var(--fg) !important;
+      color: var(--bg) !important;
+      background-image: none !important;
+    }
+
+    .cell-coord {
+      position: absolute;
+      top: 3px;
+      left: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      pointer-events: none;
+    }
+
+    /* List of Open Games */
+    .lobby-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 120px;
+    }
+
+    .lobby-item {
+      border: 2px solid var(--fg);
+      background-color: var(--bg);
+      padding: 10px 12px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      box-shadow: 3px 3px 0px var(--fg);
+    }
+
+    /* API Log List */
+    .log-list {
+      border: 2px solid var(--fg);
+      background-color: var(--bg);
+      height: 250px;
+      overflow-y: auto;
+      padding: 8px;
+      font-size: 12px;
+    }
+
+    .log-entry {
+      padding: 4px 0;
+      border-bottom: 1px dashed var(--fg);
+      word-break: break-word;
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+
+    /* Custom 1-Bit Scrollbar */
+    ::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+    ::-webkit-scrollbar-track {
+      background-color: var(--bg);
+      border-left: 2px solid var(--fg);
+    }
+    ::-webkit-scrollbar-thumb {
+      background-color: var(--fg);
+      border: 2px solid var(--bg);
+    }
+
+    /* 1-Bit Modal Overlay (uses 50% checkerboard dither instead of alpha transparency) */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background-image: repeating-conic-gradient(var(--fg) 0% 25%, var(--bg) 0% 50%);
+      background-size: 4px 4px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* 1-Bit Tables (Leaderboard) */
+    .table-1bit {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+
+    .table-1bit th,
+    .table-1bit td {
+      border: 2px solid var(--fg);
+      padding: 6px 10px;
+      text-align: left;
+    }
+
+    .table-1bit th {
+      background-color: var(--fg);
+      color: var(--bg);
+      font-weight: 700;
+    }
+
+    .table-1bit tr.highlight {
+      background-image: repeating-conic-gradient(var(--fg) 0% 25%, var(--bg) 0% 50%);
+      background-size: 2px 2px;
+      font-weight: 700;
+    }
+
+    /* History Cards */
+    .history-item {
+      border: 2px solid var(--fg);
+      background-color: var(--bg);
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      box-shadow: 3px 3px 0px var(--fg);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    hr.divider {
+      border: none;
+      border-top: 2px solid var(--fg);
+      margin: 14px 0;
+    }
+
+    hr.divider-dashed {
+      border: none;
+      border-top: 2px dashed var(--fg);
+      margin: 14px 0;
+    }
+  </style>
+</head>
+<body data-palette="cream">
+
+  <!-- TOP 1-BIT SYSTEM MENU BAR -->
+  <header class="menubar">
+    <div class="menubar-left">
+      <span class="app-title">КРЕСТИКИ-НОЛИКИ</span>
+      <span class="tag">API: /api</span>
+    </div>
+
+    <div class="menubar-right">
+      <label for="paletteSelect" style="font-size: 12px; font-weight: 700;">Экран:</label>
+      <select id="paletteSelect" class="select-1bit" onchange="App.changePalette(this.value)">
+        <option value="cream">Cream 1-Bit</option>
+        <option value="bw">Mac Ч/Б</option>
+        <option value="cyan">Cyan 1-Bit</option>
+        <option value="amber">Amber 1-Bit</option>
+      </select>
+
+      <button id="btnSound" type="button" class="btn btn-sm" onclick="App.toggleSound()">
+        <span id="soundIcon">Звук: Вкл</span>
+      </button>
+
+      <div id="headerUserBox" class="hidden" style="display: flex; align-items: center; gap: 8px; padding-left: 8px; border-left: 2px solid var(--fg);">
+        <span style="font-size: 12px;">Игрок: <strong id="headerUserName">—</strong></span>
+        <button type="button" class="btn btn-sm" onclick="App.logout()">Выход</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN DESKTOP WORKSPACE -->
+  <main class="desktop">
+
+    <!-- LEFT COLUMN: AUTH / LOBBY / GAME -->
+    <section>
+
+      <!-- =========================================================
+           VIEW 1: LOGIN & REGISTRATION
+           ========================================================= -->
+      <div id="viewAuth" class="window">
+        <div class="window-titlebar">
+          <div class="window-close-box"></div>
+          <div class="window-title">Авторизация</div>
+          <div class="window-close-box"></div>
+        </div>
+
+        <div class="window-body">
+          <div class="tabs">
+            <button id="tabBtnLogin" type="button" class="btn btn-primary" onclick="App.switchAuthTab('login')">
+              Вход
+            </button>
+            <button id="tabBtnRegister" type="button" class="btn" onclick="App.switchAuthTab('register')">
+              Регистрация
+            </button>
+          </div>
+
+          <form id="authForm" onsubmit="App.handleAuthSubmit(event)">
+            <div class="form-group">
+              <label class="form-label" for="authLogin">Логин</label>
+              <input
+                id="authLogin"
+                type="text"
+                required
+                autocomplete="username"
+                placeholder="Введите логин"
+                class="input-1bit"
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="authPassword">Пароль</label>
+              <input
+                id="authPassword"
+                type="password"
+                required
+                autocomplete="current-password"
+                placeholder="Введите пароль"
+                class="input-1bit"
+              />
+            </div>
+
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px;">
+              <button id="btnAuthSubmit" type="submit" class="btn btn-primary" style="flex: 1;">
+                Войти
+              </button>
+              <button type="button" class="btn" onclick="App.quickFillAuth('alice', 'secret_password')" title="Быстрое заполнение: alice">
+                Тест: alice
+              </button>
+              <button type="button" class="btn" onclick="App.quickFillAuth('bob', 'secret_password')" title="Быстрое заполнение: bob">
+                Тест: bob
+              </button>
+            </div>
+          </form>
+
+          <hr class="divider-dashed" />
+          <div style="font-size: 12px;">
+            <strong>Проверка мультиплеера:</strong> Сессия сохраняется в <code>sessionStorage</code>. Вы можете открыть две вкладки браузера и войти под разными пользователями (например, <code>alice</code> и <code>bob</code>).
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================================================
+           VIEW 2: LOBBY (GAMES / HISTORY / LEADERBOARD)
+           ========================================================= -->
+      <div id="viewLobby" class="hidden">
+
+        <!-- Navigation Tabs: Games / History / Leaderboard -->
+        <div class="tabs" style="grid-template-columns: 1fr 1fr 1fr; margin-bottom: 12px;">
+          <button id="tabLobbyGames" type="button" class="btn btn-primary" onclick="App.switchLobbyTab('games')">
+            Игры
+          </button>
+          <button id="tabLobbyHistory" type="button" class="btn" onclick="App.switchLobbyTab('history')">
+            История игр
+          </button>
+          <button id="tabLobbyLeaderboard" type="button" class="btn" onclick="App.switchLobbyTab('leaderboard')">
+            Таблица лидеров
+          </button>
+        </div>
+
+        <!-- TAB 1: GAMES -->
+        <div id="lobbyTabSectionGames">
+          <div class="window">
+            <div class="window-titlebar">
+              <div class="window-close-box"></div>
+              <div class="window-title">Создание новой игры</div>
+              <div class="window-close-box"></div>
+            </div>
+            <div class="window-body">
+              <div class="grid-2">
+                <div class="box" style="display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+                  <div>
+                    <div class="row-between" style="margin-bottom: 6px;">
+                      <strong>Против компьютера</strong>
+                      <span class="tag">vsBot: true</span>
+                    </div>
+                    <p style="font-size: 12px;">
+                      Одиночная игра против бота (алгоритм MiniMax). Вы играете за X и ходите первым.
+                    </p>
+                  </div>
+                  <button type="button" class="btn btn-primary" onclick="App.createGame(true)">
+                    Создать игру с ботом
+                  </button>
+                </div>
+
+                <div class="box" style="display: flex; flex-direction: column; justify-content: space-between; gap: 12px;">
+                  <div>
+                    <div class="row-between" style="margin-bottom: 6px;">
+                      <strong>Два игрока (по сети)</strong>
+                      <span class="tag">vsBot: false</span>
+                    </div>
+                    <p style="font-size: 12px;">
+                      Создать открытую комнату и дождаться подключения второго игрока из лобби.
+                    </p>
+                  </div>
+                  <button type="button" class="btn" onclick="App.createGame(false)">
+                    Создать игру (2 игрока)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="window">
+            <div class="window-titlebar">
+              <div class="window-close-box"></div>
+              <div class="window-title">Открытые игры</div>
+              <div class="window-close-box"></div>
+            </div>
+            <div class="window-body">
+              <div class="row-between" style="margin-bottom: 12px;">
+                <span style="font-size: 12px; font-weight: 700;">Автообновление каждые 3 сек.</span>
+                <button type="button" class="btn btn-sm" onclick="App.fetchLobbyGames(false)">
+                  Обновить
+                </button>
+              </div>
+
+              <div id="lobbyListContainer" class="lobby-list">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: GAME HISTORY -->
+        <div id="lobbyTabSectionHistory" class="hidden">
+          <div class="window">
+            <div class="window-titlebar">
+              <div class="window-close-box"></div>
+              <div class="window-title">История завершенных игр</div>
+              <div class="window-close-box"></div>
+            </div>
+            <div class="window-body">
+              <div class="row-between" style="margin-bottom: 12px;">
+                <span style="font-size: 12px; font-weight: 700;">Ваши завершенные партии (GET /api/game/history):</span>
+                <button type="button" class="btn btn-sm" onclick="App.fetchGameHistory(false)">
+                  Обновить историю
+                </button>
+              </div>
+
+              <div id="historyListContainer" class="lobby-list">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: LEADERBOARD -->
+        <div id="lobbyTabSectionLeaderboard" class="hidden">
+          <div class="window">
+            <div class="window-titlebar">
+              <div class="window-close-box"></div>
+              <div class="window-title">Таблица лидеров (Рейтинг игроков)</div>
+              <div class="window-close-box"></div>
+            </div>
+            <div class="window-body">
+              <div class="row-between" style="margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 12px; font-weight: 700;">Показать:</span>
+                  <select id="leaderboardLimitSelect" class="select-1bit" onchange="App.changeLeaderboardLimit(this.value)">
+                    <option value="5">Топ 5</option>
+                    <option value="10" selected>Топ 10</option>
+                    <option value="25">Топ 25</option>
+                  </select>
+                </div>
+                <button type="button" class="btn btn-sm" onclick="App.refreshLeaderboardManual()">
+                  Обновить топ
+                </button>
+              </div>
+
+              <div id="leaderboardContainer">
+                <!-- Populated by JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- =========================================================
+           VIEW 3: ACTIVE GAME BOARD
+           ========================================================= -->
+      <div id="viewGame" class="window hidden">
+        <div class="window-titlebar">
+          <div class="window-close-box"></div>
+          <div id="gameWindowTitle" class="window-title">Игра</div>
+          <div class="window-close-box"></div>
+        </div>
+
+        <div class="window-body">
+          <div class="row-between" style="margin-bottom: 12px;">
+            <button type="button" class="btn btn-sm" onclick="App.leaveBoardToLobby()">
+              ← Лобби
+            </button>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span id="gamePollingBadge" class="tag">Опрос: Выкл</span>
+              <span id="gameStatusBadge" class="tag tag-inverted">PLAYING</span>
+            </div>
+          </div>
+
+          <!-- Players Info -->
+          <div class="grid-2" style="margin-bottom: 12px;">
+            <div id="cardPlayerX" class="box">
+              <div class="row-between" style="margin-bottom: 4px;">
+                <span class="tag">Игрок X (1)</span>
+                <span id="turnBadgeX" class="tag tag-inverted hidden">ХОД</span>
+              </div>
+              <div id="namePlayerX" style="font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis;">
+                —
+              </div>
+              <div id="uuidPlayerX" style="font-size: 11px; overflow: hidden; text-overflow: ellipsis;">
+                UUID: —
+              </div>
+            </div>
+
+            <div id="cardPlayerO" class="box">
+              <div class="row-between" style="margin-bottom: 4px;">
+                <span class="tag">Игрок O (2)</span>
+                <span id="turnBadgeO" class="tag tag-inverted hidden">ХОД</span>
+              </div>
+              <div id="namePlayerO" style="font-weight: 700; font-size: 15px; overflow: hidden; text-overflow: ellipsis;">
+                —
+              </div>
+              <div id="uuidPlayerO" style="font-size: 11px; overflow: hidden; text-overflow: ellipsis;">
+                UUID: —
+              </div>
+            </div>
+          </div>
+
+          <!-- Current Status Banner -->
+          <div id="gameVerdictBanner" class="box-inverted" style="text-align: center; margin-bottom: 16px;">
+            <div id="gameVerdictTitle" style="font-weight: 700; font-size: 16px;">
+              Загрузка игры...
+            </div>
+            <div id="gameVerdictSub" style="font-size: 12px; margin-top: 2px;">
+              Подождите
+            </div>
+          </div>
+
+          <!-- 3x3 Board -->
+          <div class="board-wrap">
+            <div id="boardGrid" class="board-grid">
+              <!-- 9 cells generated by JS -->
+            </div>
+          </div>
+
+          <hr class="divider" />
+
+          <!-- Footer Actions -->
+          <div class="row-between">
+            <div style="font-size: 12px;">
+              Ответ сервера: <strong id="serverRawMessage">—</strong>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              <button type="button" class="btn btn-sm" onclick="App.refreshActiveGameManual()">
+                Обновить поле
+              </button>
+              <button id="btnPlayAgainBot" type="button" class="btn btn-sm btn-primary hidden" onclick="App.createGame(true)">
+                Новая с ботом
+              </button>
+              <button id="btnPlayAgainPvp" type="button" class="btn btn-sm hidden" onclick="App.createGame(false)">
+                Новая (2 игрока)
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT COLUMN: SESSION INFO & HTTP LOG -->
+    <aside>
+
+      <div class="window">
+        <div class="window-titlebar">
+          <div class="window-close-box"></div>
+          <div class="window-title">Данные сессии (JWT)</div>
+          <div class="window-close-box"></div>
+        </div>
+        <div class="window-body" style="font-size: 12px; display: flex; flex-direction: column; gap: 6px;">
+          <div><strong>Логин:</strong> <span id="debugUserLogin">не выполнен вход</span></div>
+          <div style="word-break: break-all;"><strong>UUID игрока:</strong> <span id="debugUserUuid">—</span></div>
+          <div style="word-break: break-all;"><strong>UUID игры:</strong> <span id="debugGameUuid">—</span></div>
+          <hr class="divider-dashed" />
+          <div style="word-break: break-all;">
+            <strong>Access Token:</strong><br/>
+            <code id="debugAccessToken" style="font-size: 10px;">отсутствует</code>
+          </div>
+          <div style="word-break: break-all;">
+            <strong>Refresh Token:</strong><br/>
+            <code id="debugRefreshToken" style="font-size: 10px;">отсутствует</code>
+          </div>
+          <div style="display: flex; gap: 6px; margin-top: 4px;">
+            <button id="btnManualRefresh" type="button" class="btn btn-sm" onclick="App.manualRefreshToken()" style="width: 100%;">
+              Обновить токен (/token)
+            </button>
+          </div>
+          <hr class="divider-dashed" />
+          <div><strong>Кэш пользователей:</strong> <span id="debugCacheCount">1</span></div>
+          <div><strong>Коды поля:</strong> <code>0</code> — пусто, <code>1</code> — X, <code>2</code> — O</div>
+          <div><strong>UUID бота:</strong> <code>00000000-0000-0000-0000-000000000000</code></div>
+        </div>
+      </div>
+
+      <div class="window">
+        <div class="window-titlebar">
+          <div class="window-close-box"></div>
+          <div class="window-title">Журнал запросов (API)</div>
+          <div class="window-close-box"></div>
+        </div>
+        <div class="window-body">
+          <div class="row-between" style="margin-bottom: 8px;">
+            <span style="font-size: 12px; font-weight: 700;">HTTP-запросы:</span>
+            <button type="button" class="btn btn-sm" onclick="App.clearLogs()">Очистить</button>
+          </div>
+          <div id="logbookList" class="log-list">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <!-- 1-BIT MODAL DIALOG (NO NATIVE ALERT) -->
+  <div id="modalOverlay" class="modal-overlay hidden">
+    <div class="window" style="max-width: 400px; width: 100%; margin: 0;">
+      <div class="window-titlebar">
+        <div class="window-close-box"></div>
+        <div id="modalTitle" class="window-title">Сообщение</div>
+        <div class="window-close-box"></div>
+      </div>
+      <div class="window-body">
+        <p id="modalMessage" style="margin-bottom: 16px; word-break: break-word;">—</p>
+        <div style="display: flex; justify-content: flex-end;">
+          <button type="button" class="btn btn-primary" onclick="App.closeModal()">ОК</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * 1-BIT PC BEEPER SOUND SYNTHESIZER (Web Audio API)
+     */
+    const SoundFX = {
+      enabled: true,
+      ctx: null,
+
+      init() {
+        if (!this.ctx && (window.AudioContext || window.webkitAudioContext)) {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      },
+
+      beep(freq, duration, delay = 0) {
+        if (!this.enabled) return;
+        try {
+          this.init();
+          if (!this.ctx) return;
+          const now = this.ctx.currentTime + delay;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(freq, now);
+          gain.gain.setValueAtTime(0.04, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + duration);
+        } catch (e) {}
+      },
+
+      click() { this.beep(800, 0.025); },
+      move(isX) { this.beep(isX ? 520 : 660, 0.05); },
+      win() {
+        this.beep(523, 0.08, 0);
+        this.beep(659, 0.08, 0.09);
+        this.beep(784, 0.14, 0.18);
+      },
+      error() {
+        this.beep(180, 0.12, 0);
+        this.beep(140, 0.16, 0.13);
+      }
+    };
+
+    /**
+     * MAIN SPA CONTROLLER (STRICTLY REAL HTTP REQUESTS TO /api)
+     */
+    const App = {
+      BOT_ID: '00000000-0000-0000-0000-000000000000',
+      authMode: 'login',
+      currentLobbyTab: 'games',
+      currentLeaderboardLimit: 10,
+      userCache: new Map([['00000000-0000-0000-0000-000000000000', 'AI_BOT']]),
+      lobbyPollTimer: null,
+      gamePollTimer: null,
+      currentGame: null,
+      isSubmittingMove: false,
+
+      get accessToken() { return sessionStorage.getItem('accessToken'); },
+      set accessToken(v) { v ? sessionStorage.setItem('accessToken', v) : sessionStorage.removeItem('accessToken'); },
+
+      get refreshToken() { return sessionStorage.getItem('refreshToken'); },
+      set refreshToken(v) { v ? sessionStorage.setItem('refreshToken', v) : sessionStorage.removeItem('refreshToken'); },
+
+      get authHeader() { return this.accessToken ? `Bearer ${this.accessToken}` : null; },
+
+      get currentUserId() { return sessionStorage.getItem('currentUserId'); },
+      set currentUserId(v) { v ? sessionStorage.setItem('currentUserId', v) : sessionStorage.removeItem('currentUserId'); },
+
+      get currentLogin() { return sessionStorage.getItem('currentLogin'); },
+      set currentLogin(v) { v ? sessionStorage.setItem('currentLogin', v) : sessionStorage.removeItem('currentLogin'); },
+
+      get activeGameId() { return sessionStorage.getItem('activeGameId'); },
+      set activeGameId(v) { v ? sessionStorage.setItem('activeGameId', v) : sessionStorage.removeItem('activeGameId'); },
+
+      async init() {
+        const savedPalette = localStorage.getItem('1bit_palette') || 'cream';
+        document.body.setAttribute('data-palette', savedPalette);
+        document.getElementById('paletteSelect').value = savedPalette;
+
+        this.renderEmptyBoardSkeleton();
+
+        if (this.accessToken) {
+          try {
+            const userMe = await this.apiRequest('/api/user/me', { method: 'GET' }, true);
+            this.currentUserId = userMe.uuid;
+            this.currentLogin = userMe.login;
+            this.userCache.set(userMe.uuid, userMe.login);
+            this.updateHeaderSessionUI();
+            if (this.activeGameId) {
+              await this.openGameById(this.activeGameId);
+            } else {
+              this.showLobbyView();
+            }
+          } catch (e) {
+            this.clearSessionState();
+            this.showAuthView();
+          }
+        } else {
+          this.showAuthView();
+        }
+      },
+
+      changePalette(paletteName) {
+        SoundFX.click();
+        document.body.setAttribute('data-palette', paletteName);
+        try { localStorage.setItem('1bit_palette', paletteName); } catch (e) {}
+      },
+
+      toggleSound() {
+        SoundFX.enabled = !SoundFX.enabled;
+        document.getElementById('soundIcon').textContent = SoundFX.enabled ? 'Звук: Вкл' : 'Звук: Выкл';
+        if (SoundFX.enabled) SoundFX.click();
+      },
+
+      async apiRequest(path, options = {}, suppressLog = false) {
+        const headers = { ...(options.headers || {}) };
+        if (options.body && !headers['Content-Type']) {
+          headers['Content-Type'] = 'application/json';
+        }
+        if (this.accessToken && !headers['Authorization']) {
+          headers['Authorization'] = `Bearer ${this.accessToken}`;
+        }
+
+        const method = (options.method || 'GET').toUpperCase();
+        let status = 0;
+        let responseData = null;
+
+        try {
+          let res = await fetch(path, { ...options, headers });
+          status = res.status;
+
+          // 401 Unauthorized: попытка автоматического обновления access-токена
+          if (status === 401 && this.refreshToken && !path.startsWith('/api/auth/login') && !path.startsWith('/api/auth/token') && !path.startsWith('/api/auth/refresh')) {
+            try {
+              if (!suppressLog) this.logEvent('AUTH', '401: Обновление accessToken...');
+              const refreshData = await this.refreshAccessToken();
+              if (refreshData && refreshData.accessToken) {
+                headers['Authorization'] = `Bearer ${this.accessToken}`;
+                res = await fetch(path, { ...options, headers });
+                status = res.status;
+              }
+            } catch (refErr) {
+              this.logEvent('ERR', 'Не удалось обновить токен');
+            }
+          }
+
+          const text = await res.text();
+          try {
+            responseData = text ? JSON.parse(text) : {};
+          } catch (e) {
+            responseData = { message: text || res.statusText };
+          }
+        } catch (err) {
+          SoundFX.error();
+          this.logEvent('ERR', `${method} ${path} [NET_ERR]`);
+          throw new Error('Ошибка соединения с сервером');
+        }
+
+        if (!suppressLog) {
+          this.logEvent('HTTP', `${method} ${path} [${status}]`);
+        }
+
+        if (status === 401) {
+          const msg = (responseData && (responseData.message || responseData.error || responseData.code)) || 'Сессия истекла. Войдите снова.';
+          this.clearSessionState();
+          this.showAuthView();
+          SoundFX.error();
+          throw new Error(msg);
+        }
+
+        if (status < 200 || status >= 300) {
+          const errorMessage = (responseData && (responseData.message || responseData.error || responseData.code)) || 'Неизвестная ошибка';
+          SoundFX.error();
+          throw new Error(errorMessage);
+        }
+
+        return responseData;
+      },
+
+      async refreshAccessToken() {
+        if (!this.refreshToken) throw new Error('Отсутствует refreshToken');
+        const res = await fetch('/api/auth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: this.refreshToken })
+        });
+        if (!res.ok) {
+          throw new Error('Ошибка обновления accessToken');
+        }
+        const data = await res.json();
+        this.accessToken = data.accessToken;
+        if (data.refreshToken) {
+          this.refreshToken = data.refreshToken;
+        }
+        this.logEvent('REFRESH', 'accessToken успешно обновлен');
+        this.updateDebugPanel();
+        return data;
+      },
+
+      async manualRefreshToken() {
+        SoundFX.click();
+        if (!this.refreshToken) {
+          this.showModal('Ошибка', 'Нет активного refresh токена');
+          return;
+        }
+        try {
+          await this.refreshAccessToken();
+          this.showModal('Успех', 'AccessToken успешно обновлен через /api/auth/token');
+        } catch (e) {
+          this.showModal('Ошибка', e.message);
+        }
+      },
+
+      async resolveUserLogin(uuid) {
+        if (!uuid) return 'Ожидание...';
+        if (uuid === this.BOT_ID) return 'AI_BOT';
+        if (this.userCache.has(uuid)) return this.userCache.get(uuid);
+
+        try {
+          const data = await this.apiRequest(`/api/user/${uuid}`, { method: 'GET' }, true);
+          if (data && data.login) {
+            this.userCache.set(uuid, data.login);
+            this.updateDebugPanel();
+            return data.login;
+          }
+        } catch (e) {}
+        return uuid.slice(0, 8);
+      },
+
+      /* =========================================================
+         AUTH
+         ========================================================= */
+      switchAuthTab(mode) {
+        SoundFX.click();
+        this.authMode = mode;
+        const btnLogin = document.getElementById('tabBtnLogin');
+        const btnReg = document.getElementById('tabBtnRegister');
+        const btnSubmit = document.getElementById('btnAuthSubmit');
+
+        if (mode === 'login') {
+          btnLogin.className = 'btn btn-primary';
+          btnReg.className = 'btn';
+          btnSubmit.textContent = 'Войти';
+        } else {
+          btnReg.className = 'btn btn-primary';
+          btnLogin.className = 'btn';
+          btnSubmit.textContent = 'Зарегистрироваться';
+        }
+      },
+
+      quickFillAuth(login, password) {
+        SoundFX.click();
+        document.getElementById('authLogin').value = login;
+        document.getElementById('authPassword').value = password;
+      },
+
+      async handleAuthSubmit(event) {
+        event.preventDefault();
+        SoundFX.click();
+
+        const login = document.getElementById('authLogin').value.trim();
+        const password = document.getElementById('authPassword').value;
+        if (!login || !password) {
+          this.showModal('Ошибка', 'Введите логин и пароль.');
+          return;
+        }
+
+        const btnSubmit = document.getElementById('btnAuthSubmit');
+        btnSubmit.disabled = true;
+
+        try {
+          if (this.authMode === 'register') {
+            await this.apiRequest('/api/auth/register', {
+              method: 'POST',
+              body: JSON.stringify({ login, password })
+            });
+            this.logEvent('REGISTER', `Пользователь ${login} зарегистрирован`);
+          }
+
+          // JWT авторизация: передаем JSON-тело на /api/auth/login
+          const loginRes = await this.apiRequest('/api/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ login, password })
+          });
+
+          if (!loginRes || !loginRes.accessToken) {
+            throw new Error('Сервер не вернул токен доступа');
+          }
+
+          this.accessToken = loginRes.accessToken;
+          this.refreshToken = loginRes.refreshToken;
+          this.logEvent('JWT', `Токены получены для ${login}`);
+
+          // Получаем профиль текущего пользователя через /api/user/me
+          const userMe = await this.apiRequest('/api/user/me', { method: 'GET' });
+          this.currentUserId = userMe.uuid;
+          this.currentLogin = userMe.login || login;
+          this.userCache.set(this.currentUserId, this.currentLogin);
+
+          this.logEvent('LOGIN', `Вход выполнен: ${this.currentLogin}`);
+          this.updateHeaderSessionUI();
+          this.showLobbyView();
+        } catch (err) {
+          this.showModal('Ошибка авторизации', err.message);
+        } finally {
+          btnSubmit.disabled = false;
+        }
+      },
+
+      logout() {
+        SoundFX.click();
+        this.logEvent('LOGOUT', `Выход пользователя ${this.currentLogin || ''}`);
+        this.clearSessionState();
+        this.showAuthView();
+      },
+
+      clearSessionState() {
+        this.stopAllPolling();
+        this.accessToken = null;
+        this.refreshToken = null;
+        sessionStorage.removeItem('authHeader');
+        this.currentUserId = null;
+        this.currentLogin = null;
+        this.activeGameId = null;
+        this.currentGame = null;
+        this.updateHeaderSessionUI();
+      },
+
+      updateHeaderSessionUI() {
+        const box = document.getElementById('headerUserBox');
+        const nameEl = document.getElementById('headerUserName');
+        if (this.currentUserId && this.currentLogin) {
+          box.classList.remove('hidden');
+          nameEl.textContent = this.currentLogin;
+        } else {
+          box.classList.add('hidden');
+        }
+        this.updateDebugPanel();
+      },
+
+      /* =========================================================
+         NAVIGATION & POLLING
+         ========================================================= */
+      stopAllPolling() {
+        this.stopLobbyPolling();
+        if (this.gamePollTimer) { clearInterval(this.gamePollTimer); this.gamePollTimer = null; }
+      },
+
+      startLobbyPolling() {
+        if (this.lobbyPollTimer) return;
+        this.lobbyPollTimer = setInterval(() => {
+          if (this.currentLobbyTab === 'games') {
+            this.fetchLobbyGames(true);
+          }
+        }, 3000);
+      },
+
+      stopLobbyPolling() {
+        if (this.lobbyPollTimer) {
+          clearInterval(this.lobbyPollTimer);
+          this.lobbyPollTimer = null;
+        }
+      },
+
+      switchLobbyTab(tab) {
+        SoundFX.click();
+        this.currentLobbyTab = tab;
+
+        const btnGames = document.getElementById('tabLobbyGames');
+        const btnHist = document.getElementById('tabLobbyHistory');
+        const btnLead = document.getElementById('tabLobbyLeaderboard');
+        if (btnGames) btnGames.className = tab === 'games' ? 'btn btn-primary' : 'btn';
+        if (btnHist) btnHist.className = tab === 'history' ? 'btn btn-primary' : 'btn';
+        if (btnLead) btnLead.className = tab === 'leaderboard' ? 'btn btn-primary' : 'btn';
+
+        const secGames = document.getElementById('lobbyTabSectionGames');
+        const secHist = document.getElementById('lobbyTabSectionHistory');
+        const secLead = document.getElementById('lobbyTabSectionLeaderboard');
+        if (secGames) secGames.classList.toggle('hidden', tab !== 'games');
+        if (secHist) secHist.classList.toggle('hidden', tab !== 'history');
+        if (secLead) secLead.classList.toggle('hidden', tab !== 'leaderboard');
+
+        if (tab === 'games') {
+          this.fetchLobbyGames(false);
+          this.startLobbyPolling();
+        } else {
+          this.stopLobbyPolling();
+        }
+
+        if (tab === 'history') {
+          this.fetchGameHistory(false);
+        } else if (tab === 'leaderboard') {
+          this.fetchLeaderboard(this.currentLeaderboardLimit || 10, false);
+        }
+      },
+
+      showAuthView() {
+        this.stopAllPolling();
+        document.getElementById('viewAuth').classList.remove('hidden');
+        document.getElementById('viewLobby').classList.add('hidden');
+        document.getElementById('viewGame').classList.add('hidden');
+        this.updateDebugPanel();
+      },
+
+      showLobbyView() {
+        this.stopAllPolling();
+        this.activeGameId = null;
+        this.currentGame = null;
+        document.getElementById('viewAuth').classList.add('hidden');
+        document.getElementById('viewLobby').classList.remove('hidden');
+        document.getElementById('viewGame').classList.add('hidden');
+        this.updateDebugPanel();
+
+        this.switchLobbyTab(this.currentLobbyTab || 'games');
+      },
+
+      showGameView() {
+        this.stopAllPolling();
+        document.getElementById('viewAuth').classList.add('hidden');
+        document.getElementById('viewLobby').classList.add('hidden');
+        document.getElementById('viewGame').classList.remove('hidden');
+        this.updateDebugPanel();
+      },
+
+      leaveBoardToLobby() {
+        SoundFX.click();
+        this.showLobbyView();
+      },
+
+      /* =========================================================
+         LOBBY: GAMES, HISTORY, LEADERBOARD
+         ========================================================= */
+      async fetchLobbyGames(silent = false) {
+        if (!this.accessToken) return;
+        try {
+          const games = await this.apiRequest('/api/game', { method: 'GET' }, silent);
+          await this.renderLobbyList(Array.isArray(games) ? games : []);
+        } catch (err) {
+          if (!silent) this.showModal('Ошибка', err.message);
+        }
+      },
+
+      /* История завершенных игр */
+      async fetchGameHistory(silent = false) {
+        if (!this.accessToken) return;
+        try {
+          const games = await this.apiRequest('/api/game/history', { method: 'GET' }, silent);
+          await this.renderHistoryList(Array.isArray(games) ? games : []);
+        } catch (err) {
+          if (!silent) this.showModal('Ошибка загрузки истории', err.message);
+        }
+      },
+
+      async renderHistoryList(games) {
+        const container = document.getElementById('historyListContainer');
+        if (!container) return;
+
+        if (!games || !games.length) {
+          container.innerHTML = `
+            <div class="box" style="text-align: center; padding: 24px;">
+              <strong>История завершенных игр пуста</strong>
+              <div style="font-size: 12px; margin-top: 4px;">Сыграйте партию с ботом или другим игроком, и она отобразится здесь.</div>
+            </div>
+          `;
+          return;
+        }
+
+        const idsToResolve = [];
+        games.forEach(g => {
+          if (g.playerXId) idsToResolve.push(g.playerXId);
+          if (g.playerOId) idsToResolve.push(g.playerOId);
+          if (g.winnerId) idsToResolve.push(g.winnerId);
+        });
+        await Promise.all(idsToResolve.map(id => this.resolveUserLogin(id)));
+
+        container.innerHTML = games.map(g => {
+          const isMeX = g.playerXId === this.currentUserId;
+          const mySymbol = isMeX ? 'X' : 'O';
+          const oppId = isMeX ? g.playerOId : g.playerXId;
+          const oppName = oppId ? (this.userCache.get(oppId) || (oppId === this.BOT_ID ? 'AI_BOT' : oppId.slice(0, 8))) : '—';
+
+          let statusTag = '';
+          if (g.status === 'DRAW') {
+            statusTag = '<span class="tag">НИЧЬЯ</span>';
+          } else if (g.winnerId === this.currentUserId) {
+            statusTag = '<span class="tag tag-inverted">ПОБЕДА</span>';
+          } else {
+            statusTag = '<span class="tag">ПОРАЖЕНИЕ</span>';
+          }
+
+          let dateStr = '—';
+          if (g.createdAt) {
+            try {
+              dateStr = new Date(g.createdAt).toLocaleString('ru-RU');
+            } catch (e) {
+              dateStr = g.createdAt;
+            }
+          }
+
+          return `
+            <div class="history-item">
+              <div class="row-between">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  ${statusTag}
+                  <strong>Вы (${mySymbol})</strong>
+                  <span>против <strong>${this.escapeHtml(oppName)}</strong></span>
+                </div>
+                <button type="button" class="btn btn-sm" onclick="App.openGameById('${g.uuid}')">
+                  Просмотр поля
+                </button>
+              </div>
+              <div class="row-between" style="font-size: 11px; margin-top: 4px;">
+                <div>Дата: <code>${this.escapeHtml(dateStr)}</code></div>
+                <div>UUID: <code>${g.uuid.slice(0, 13)}...</code></div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      },
+
+      /* Таблица лидеров */
+      changeLeaderboardLimit(val) {
+        SoundFX.click();
+        const limit = parseInt(val, 10) || 10;
+        this.fetchLeaderboard(limit, false);
+      },
+
+      refreshLeaderboardManual() {
+        SoundFX.click();
+        const select = document.getElementById('leaderboardLimitSelect');
+        const limit = select ? (parseInt(select.value, 10) || 10) : 10;
+        this.fetchLeaderboard(limit, false);
+      },
+
+      async fetchLeaderboard(limit = 10, silent = false) {
+        if (!this.accessToken) return;
+        this.currentLeaderboardLimit = limit;
+        try {
+          const list = await this.apiRequest(`/api/game/leaderboard?limit=${limit}&n=${limit}`, { method: 'GET' }, silent);
+          this.renderLeaderboard(Array.isArray(list) ? list : [], limit);
+        } catch (err) {
+          if (!silent) this.showModal('Ошибка таблицы лидеров', err.message);
+        }
+      },
+
+      renderLeaderboard(leaders, limit) {
+        const container = document.getElementById('leaderboardContainer');
+        if (!container) return;
+
+        if (!leaders || !leaders.length) {
+          container.innerHTML = `
+            <div class="box" style="text-align: center; padding: 24px;">
+              <strong>Таблица лидеров пуста</strong>
+              <div style="font-size: 12px; margin-top: 4px;">Завершите хотя бы одну партию, чтобы игроки попали в рейтинг.</div>
+            </div>
+          `;
+          return;
+        }
+
+        const rows = leaders.map((item, index) => {
+          const isCurrent = item.uuid === this.currentUserId;
+          const rank = index + 1;
+          const rankBadge = rank === 1 ? '🥇 #1' : (rank === 2 ? '🥈 #2' : (rank === 3 ? '🥉 #3' : `#${rank}`));
+          const loginDisplay = isCurrent ? `<strong>${this.escapeHtml(item.login)} (Вы)</strong>` : this.escapeHtml(item.login);
+          const winRateDisplay = typeof item.winRate === 'number' ? item.winRate.toFixed(2) : item.winRate;
+
+          return `
+            <tr class="${isCurrent ? 'highlight' : ''}">
+              <td style="font-weight: 700; width: 60px;">${rankBadge}</td>
+              <td>${loginDisplay}</td>
+              <td style="font-family: monospace; font-size: 11px;">${item.uuid ? item.uuid.slice(0, 8) + '...' : '—'}</td>
+              <td style="font-weight: 700; text-align: right; width: 90px;">${winRateDisplay}</td>
+            </tr>
+          `;
+        }).join('');
+
+        container.innerHTML = `
+          <table class="table-1bit">
+            <thead>
+              <tr>
+                <th>Место</th>
+                <th>Игрок</th>
+                <th>UUID</th>
+                <th style="text-align: right;">Win Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+          <div style="font-size: 11px; margin-top: 8px;">
+            * Win Rate рассчитывается как отношение выигранных партий к поражениям и ничьим: <code>W / (L + D)</code>.
+          </div>
+        `;
+      },
+
+      async renderLobbyList(games) {
+        const container = document.getElementById('lobbyListContainer');
+        if (!games.length) {
+          container.innerHTML = `
+            <div class="box" style="text-align: center; padding: 24px;">
+              <strong>Нет открытых игр</strong>
+              <div style="font-size: 12px; margin-top: 4px;">Создайте новую игру выше.</div>
+            </div>
+          `;
+          return;
+        }
+
+        await Promise.all(games.map(g => this.resolveUserLogin(g.playerXId)));
+
+        container.innerHTML = games.map(g => {
+          const creator = this.userCache.get(g.playerXId) || g.playerXId.slice(0, 8);
+          const isMine = g.playerXId === this.currentUserId;
+          return `
+            <div class="lobby-item">
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                  <strong>Создатель (X): ${this.escapeHtml(creator)}</strong>
+                  ${isMine ? '<span class="tag tag-inverted">Ваша игра</span>' : ''}
+                </div>
+                <div style="font-size: 12px; margin-top: 2px;">
+                  UUID: <code>${g.uuid}</code>
+                </div>
+              </div>
+              <div>
+                ${
+                  isMine
+                    ? `<button type="button" class="btn btn-sm btn-primary" onclick="App.openGameById('${g.uuid}')">Открыть</button>`
+                    : `<button type="button" class="btn btn-sm btn-primary" onclick="App.joinGame('${g.uuid}')">Присоединиться</button>`
+                }
+              </div>
+            </div>
+          `;
+        }).join('');
+      },
+
+      async createGame(vsBot) {
+        SoundFX.click();
+        try {
+          const game = await this.apiRequest('/api/game', {
+            method: 'POST',
+            body: JSON.stringify({ vsBot: Boolean(vsBot) })
+          });
+          this.activeGameId = game.uuid;
+          this.showGameView();
+          await this.updateGameStateUI(game);
+        } catch (err) {
+          this.showModal('Ошибка создания игры', err.message);
+        }
+      },
+
+      async joinGame(gameId) {
+        SoundFX.click();
+        try {
+          const game = await this.apiRequest(`/api/game/${gameId}/join`, { method: 'POST' });
+          this.activeGameId = game.uuid;
+          this.showGameView();
+          await this.updateGameStateUI(game);
+        } catch (err) {
+          this.showModal('Ошибка подключения', err.message);
+          this.fetchLobbyGames(true);
+        }
+      },
+
+      async openGameById(gameId) {
+        this.activeGameId = gameId;
+        this.showGameView();
+        try {
+          const game = await this.apiRequest(`/api/game/${gameId}`, { method: 'GET' });
+          await this.updateGameStateUI(game);
+        } catch (err) {
+          this.showModal('Ошибка', err.message);
+          this.showLobbyView();
+        }
+      },
+
+      async refreshActiveGameManual() {
+        SoundFX.click();
+        if (!this.activeGameId) return;
+        try {
+          const game = await this.apiRequest(`/api/game/${this.activeGameId}`, { method: 'GET' });
+          await this.updateGameStateUI(game);
+        } catch (err) {
+          this.showModal('Ошибка', err.message);
+        }
+      },
+
+      /* =========================================================
+         BOARD & MOVES
+         ========================================================= */
+      renderEmptyBoardSkeleton() {
+        const grid = document.getElementById('boardGrid');
+        const cells = [];
+        for (let r = 0; r < 3; r++) {
+          for (let c = 0; c < 3; c++) {
+            cells.push(`
+              <button
+                type="button"
+                id="cell-${r}-${c}"
+                class="board-cell locked"
+                onclick="App.handleCellClick(${r}, ${c})"
+                aria-label="Клетка ${r + 1}-${c + 1}"
+              >
+                <span class="cell-coord">${r},${c}</span>
+                <span id="cell-mark-${r}-${c}" style="width: 70%; height: 70%; display: flex; align-items: center; justify-content: center;"></span>
+              </button>
+            `);
+          }
+        }
+        grid.innerHTML = cells.join('');
+      },
+
+      get1BitSvgX() {
+        return `
+          <svg viewBox="0 0 48 48" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="square">
+            <line x1="8" y1="8" x2="40" y2="40" />
+            <line x1="40" y1="8" x2="8" y2="40" />
+          </svg>
+        `;
+      },
+
+      get1BitSvgO() {
+        return `
+          <svg viewBox="0 0 48 48" width="100%" height="100%" fill="none" stroke="currentColor" stroke-width="6">
+            <rect x="8" y="8" width="32" height="32" rx="16" />
+          </svg>
+        `;
+      },
+
+      findWinningCells(field) {
+        const lines = [
+          [[0,0],[0,1],[0,2]], [[1,0],[1,1],[1,2]], [[2,0],[2,1],[2,2]],
+          [[0,0],[1,0],[2,0]], [[0,1],[1,1],[2,1]], [[0,2],[1,2],[2,2]],
+          [[0,0],[1,1],[2,2]], [[0,2],[1,1],[2,0]]
+        ];
+        for (const line of lines) {
+          const [a, b, c] = line;
+          const v = field[a[0]][a[1]];
+          if (v !== 0 && v === field[b[0]][b[1]] && v === field[c[0]][c[1]]) {
+            return new Set(line.map(([r, col]) => `${r}-${col}`));
+          }
+        }
+        return new Set();
+      },
+
+      async updateGameStateUI(game) {
+        const prevStatus = this.currentGame ? this.currentGame.status : null;
+        this.currentGame = game;
+
+        const [loginX, loginO, winnerLogin] = await Promise.all([
+          this.resolveUserLogin(game.playerXId),
+          game.playerOId ? this.resolveUserLogin(game.playerOId) : Promise.resolve('Ожидание игрока...'),
+          game.winnerId ? this.resolveUserLogin(game.winnerId) : Promise.resolve(null)
+        ]);
+
+        document.getElementById('gameWindowTitle').textContent = `Игра #${game.uuid.slice(0, 8)}`;
+        document.getElementById('gameStatusBadge').textContent = game.status;
+        document.getElementById('serverRawMessage').textContent = game.message || '—';
+
+        const isMeX = game.playerXId === this.currentUserId;
+        const isMeO = game.playerOId === this.currentUserId;
+
+        document.getElementById('namePlayerX').textContent = loginX + (isMeX ? ' (Вы)' : '');
+        document.getElementById('uuidPlayerX').textContent = `UUID: ${game.playerXId}`;
+        document.getElementById('namePlayerO').textContent = loginO + (isMeO ? ' (Вы)' : '');
+        document.getElementById('uuidPlayerO').textContent = `UUID: ${game.playerOId || '—'}`;
+
+        const badgeX = document.getElementById('turnBadgeX');
+        const badgeO = document.getElementById('turnBadgeO');
+        badgeX.classList.add('hidden');
+        badgeO.classList.add('hidden');
+
+        if (game.status === 'PLAYING') {
+          if (game.currentPlayer === 1) badgeX.classList.remove('hidden');
+          else badgeO.classList.remove('hidden');
+        }
+
+        const isMyTurn =
+          game.status === 'PLAYING' &&
+          game.currentPlayerId === this.currentUserId &&
+          !this.isSubmittingMove;
+
+        const winSet = this.findWinningCells(game.field);
+        for (let r = 0; r < 3; r++) {
+          for (let c = 0; c < 3; c++) {
+            const cell = document.getElementById(`cell-${r}-${c}`);
+            const mark = document.getElementById(`cell-mark-${r}-${c}`);
+            const val = game.field[r][c];
+
+            cell.className = 'board-cell';
+            if (val === 1) {
+              cell.classList.add('locked');
+              mark.innerHTML = this.get1BitSvgX();
+            } else if (val === 2) {
+              cell.classList.add('locked');
+              mark.innerHTML = this.get1BitSvgO();
+            } else {
+              mark.innerHTML = '';
+              cell.classList.add(isMyTurn ? 'interactive' : 'locked');
+            }
+
+            if (winSet.has(`${r}-${c}`)) {
+              cell.classList.add('cell-win');
+            }
+          }
+        }
+
+        const vTitle = document.getElementById('gameVerdictTitle');
+        const vSub = document.getElementById('gameVerdictSub');
+        const isFinished = ['X_WON', 'O_WON', 'DRAW'].includes(game.status);
+
+        document.getElementById('btnPlayAgainBot').classList.toggle('hidden', !isFinished);
+        document.getElementById('btnPlayAgainPvp').classList.toggle('hidden', !isFinished);
+
+        if (game.status === 'WAITING_FOR_PLAYERS') {
+          vTitle.textContent = 'Ожидание второго игрока';
+          vSub.textContent = 'Поле заблокировано до подключения соперника.';
+          this.ensureGamePolling(true);
+        } else if (game.status === 'PLAYING') {
+          if (isMyTurn) {
+            const sym = isMeX ? 'X' : 'O';
+            vTitle.textContent = `Ваш ход (${sym})`;
+            vSub.textContent = 'Выберите свободную клетку на поле.';
+            this.ensureGamePolling(false);
+          } else {
+            const oppName = game.currentPlayer === 1 ? loginX : loginO;
+            vTitle.textContent = `Ход соперника (${oppName})`;
+            vSub.textContent = 'Ожидание ответа сервера...';
+            this.ensureGamePolling(true);
+          }
+        } else if (game.status === 'X_WON' || game.status === 'O_WON') {
+          this.ensureGamePolling(false);
+          const symbolWon = game.status === 'X_WON' ? 'X' : 'O';
+          vTitle.textContent = `Победа ${symbolWon} (${winnerLogin})`;
+          vSub.textContent = game.winnerId === this.currentUserId ? 'Вы выиграли партию.' : 'Партия завершена.';
+          if (prevStatus === 'PLAYING') SoundFX.win();
+        } else if (game.status === 'DRAW') {
+          this.ensureGamePolling(false);
+          vTitle.textContent = 'Ничья';
+          vSub.textContent = 'Все клетки заполнены.';
+        }
+      },
+
+      ensureGamePolling(shouldPoll) {
+        const badge = document.getElementById('gamePollingBadge');
+        if (!shouldPoll) {
+          if (this.gamePollTimer) {
+            clearInterval(this.gamePollTimer);
+            this.gamePollTimer = null;
+          }
+          badge.textContent = 'Опрос: Выкл';
+          return;
+        }
+
+        badge.textContent = 'Опрос: 1.2 сек';
+        if (this.gamePollTimer) return;
+
+        this.gamePollTimer = setInterval(async () => {
+          if (!this.activeGameId || this.isSubmittingMove) return;
+          try {
+            const latest = await this.apiRequest(`/api/game/${this.activeGameId}`, { method: 'GET' }, true);
+            const changed =
+              !this.currentGame ||
+              this.currentGame.status !== latest.status ||
+              this.currentGame.currentPlayerId !== latest.currentPlayerId ||
+              JSON.stringify(this.currentGame.field) !== JSON.stringify(latest.field);
+
+            if (changed) {
+              this.logEvent('POLL', `Обновление состояния (${latest.status})`);
+              await this.updateGameStateUI(latest);
+            }
+          } catch (e) {}
+        }, 1200);
+      },
+
+      async handleCellClick(row, col) {
+        const game = this.currentGame;
+        if (!game || this.isSubmittingMove) return;
+        if (game.status !== 'PLAYING') return;
+        if (game.currentPlayerId !== this.currentUserId) return;
+        if (game.field[row][col] !== 0) return;
+
+        const mySymbol = game.playerXId === this.currentUserId ? 1 : 2;
+        SoundFX.move(mySymbol === 1);
+
+        const updatedMatrix = game.field.map(r => [...r]);
+        updatedMatrix[row][col] = mySymbol;
+
+        this.isSubmittingMove = true;
+        try {
+          const updatedGame = await this.apiRequest(`/api/game/${game.uuid}`, {
+            method: 'POST',
+            body: JSON.stringify({ matrix: updatedMatrix })
+          });
+          await this.updateGameStateUI(updatedGame);
+        } catch (err) {
+          this.showModal('Ошибка хода', err.message);
+          await this.refreshActiveGameManual();
+        } finally {
+          this.isSubmittingMove = false;
+        }
+      },
+
+      /* =========================================================
+         LOGS & MODAL
+         ========================================================= */
+      logEvent(tag, text) {
+        const list = document.getElementById('logbookList');
+        if (!list) return;
+        const timeStr = new Date().toTimeString().slice(0, 8);
+        const div = document.createElement('div');
+        div.className = 'log-entry';
+        div.innerHTML = `[${timeStr}] <strong>${this.escapeHtml(tag)}</strong>: ${this.escapeHtml(text)}`;
+        list.prepend(div);
+      },
+
+      clearLogs() {
+        SoundFX.click();
+        document.getElementById('logbookList').innerHTML = '';
+      },
+
+      updateDebugPanel() {
+        document.getElementById('debugUserLogin').textContent = this.currentLogin || 'не выполнен вход';
+        document.getElementById('debugUserUuid').textContent = this.currentUserId || '—';
+        document.getElementById('debugGameUuid').textContent = this.activeGameId || '—';
+        document.getElementById('debugCacheCount').textContent = String(this.userCache.size);
+
+        const atEl = document.getElementById('debugAccessToken');
+        const rtEl = document.getElementById('debugRefreshToken');
+        if (atEl) {
+          atEl.textContent = this.accessToken ? `${this.accessToken.slice(0, 16)}...${this.accessToken.slice(-8)}` : 'отсутствует';
+        }
+        if (rtEl) {
+          rtEl.textContent = this.refreshToken ? `${this.refreshToken.slice(0, 16)}...${this.refreshToken.slice(-8)}` : 'отсутствует';
+        }
+      },
+
+      showModal(title, message) {
+        document.getElementById('modalTitle').textContent = title;
+        document.getElementById('modalMessage').textContent = message;
+        document.getElementById('modalOverlay').classList.remove('hidden');
+      },
+
+      closeModal() {
+        SoundFX.click();
+        document.getElementById('modalOverlay').classList.add('hidden');
+      },
+
+      escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+    };
+
+    window.onload = () => App.init();
+  </script>
+</body>
+</html>
